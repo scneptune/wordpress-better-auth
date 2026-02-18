@@ -1,0 +1,36 @@
+# Composer
+vendor/
+composer.lock
+
+# WordPress
+wp-config-local.php
+wp-content/plugins/*/vendor/
+wp-content/uploads/
+wp-content/cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (if using npm/gulp/webpack)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment
+.env
+.env.local
+
+# Dependencies
+/vendor
+
+# Build artifacts
+dist/
+build/

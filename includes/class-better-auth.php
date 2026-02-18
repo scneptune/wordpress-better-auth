@@ -78,6 +78,7 @@ class Better_Auth {
 		$this->set_locale();
 		$this->define_admin_hooks();
 		$this->define_public_hooks();
+		$this->define_rest_hooks();
 
 	}
 
@@ -175,6 +176,217 @@ class Better_Auth {
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
 
+	}
+
+	/**
+	 * Register REST API routes.
+	 *
+	 * Hooked into rest_api_init so routes are only registered when the
+	 * REST API is actually being served.
+	 *
+	 * @since  1.0.0
+	 * @access private
+	 */
+	private function define_rest_hooks() {
+		$this->loader->add_action( 'rest_api_init', $this, 'register_rest_routes' );
+	}
+
+	/**
+	 * Register the /better-auth/v1/sync-user route.
+	 *
+	 * @since 1.0.0
+	 */
+	public function register_rest_routes() {
+		register_rest_route(
+			'better-auth/v1',
+			'/sync-user',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'handle_sync_user_request' ),
+				'permission_callback' => array( $this, 'verify_api_secret' ),
+				'args'                => array(
+					'id' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+						'description'       => __( 'The Better Auth user ID.', 'better-auth' ),
+					),
+					'name' => array(
+						'required'          => false,
+						'type'              => 'string',
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_text_field',
+						'description'       => __( 'Display name of the user.', 'better-auth' ),
+					),
+					'email' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'format'            => 'email',
+						'sanitize_callback' => 'sanitize_email',
+						'description'       => __( 'Email address of the user.', 'better-auth' ),
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Permission callback: verify the shared API secret.
+	 *
+	 * Checks:
+	 *  1. The request was made over HTTPS (secrets must not travel in
+	 *     the clear). Can be bypassed in local dev with WP_DEBUG.
+	 *  2. The Authorization header contains a Bearer token that matches
+	 *     the stored secret (compared with hash_equals to prevent
+	 *     timing attacks).
+	 *  3. A secret has actually been configured — an empty secret
+	 *     means the endpoint is intentionally disabled.
+	 *
+	 * @since  1.0.0
+	 * @param  WP_REST_Request $request The incoming request.
+	 * @return true|WP_Error   True if authorized, WP_Error otherwise.
+	 */
+	public function verify_api_secret( $request ) {
+		// Require HTTPS unless WP_DEBUG is on (local dev).
+		if ( ! is_ssl() && ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG ) ) {
+			return new WP_Error(
+				'rest_forbidden_ssl',
+				__( 'This endpoint requires HTTPS.', 'better-auth' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		$stored_secret = get_option( 'better_auth_api_secret', '' );
+
+		if ( empty( $stored_secret ) ) {
+			return new WP_Error(
+				'rest_forbidden_no_secret',
+				__( 'The Better Auth API secret has not been configured. Set it under Settings → General.', 'better-auth' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		// Extract the Bearer token from the Authorization header.
+		$auth_header = $request->get_header( 'Authorization' );
+		$token       = null;
+
+		if ( $auth_header && preg_match( '/^Bearer\s+(\S+)$/i', $auth_header, $matches ) ) {
+			$token = $matches[1];
+		}
+
+		if ( empty( $token ) || ! hash_equals( $stored_secret, $token ) ) {
+			return new WP_Error(
+				'rest_forbidden_invalid_secret',
+				__( 'Invalid or missing API secret.', 'better-auth' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Handle a POST to /better-auth/v1/sync-user.
+	 *
+	 * Validates that the provided Better Auth user ID exists in the
+	 * wp_user table and has at least one row in wp_account before
+	 * creating (or linking) the corresponding WordPress user.
+	 *
+	 * Expected JSON body:
+	 *   { "id": "<ba-user-id>", "email": "user@example.com", "name": "Jane" }
+	 *
+	 * @since  1.0.0
+	 * @param  WP_REST_Request $request The incoming request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function handle_sync_user_request( $request ) {
+		global $wpdb;
+
+		// Require JSON content type.
+		$content_type = $request->get_content_type();
+		if ( empty( $content_type['value'] ) || 'application/json' !== $content_type['value'] ) {
+			return new WP_Error(
+				'rest_invalid_content_type',
+				__( 'Content-Type must be application/json.', 'better-auth' ),
+				array( 'status' => 415 )
+			);
+		}
+
+		$ba_user_id = sanitize_text_field( $request->get_param( 'id' ) );
+		$email      = sanitize_email( $request->get_param( 'email' ) );
+		$name       = sanitize_text_field( $request->get_param( 'name' ) );
+
+		if ( empty( $ba_user_id ) || empty( $email ) ) {
+			return new WP_Error(
+				'rest_missing_params',
+				__( 'Both "id" and "email" are required.', 'better-auth' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// --- Validate the user exists in the Better Auth user table ---
+		$ba_user_table = $wpdb->prefix . 'user';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$ba_user_row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id, name, email FROM `{$ba_user_table}` WHERE id = %s",
+				$ba_user_id
+			)
+		);
+
+		if ( ! $ba_user_row ) {
+			return new WP_Error(
+				'rest_ba_user_not_found',
+				__( 'No Better Auth user found with the provided ID.', 'better-auth' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		// --- Validate the user has at least one account record ---
+		$ba_account_table = $wpdb->prefix . 'account';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$account_count = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM `{$ba_account_table}` WHERE userId = %s",
+				$ba_user_id
+			)
+		);
+
+		if ( $account_count < 1 ) {
+			return new WP_Error(
+				'rest_ba_no_account',
+				__( 'The Better Auth user has no account records. A linked account is required before syncing to WordPress.', 'better-auth' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		// Build a user object from the request body (prefer the request
+		// data over the DB row so the caller can override the name).
+		$ba_user = (object) array(
+			'id'    => $ba_user_id,
+			'name'  => ! empty( $name ) ? $name : $ba_user_row->name,
+			'email' => $email,
+		);
+
+		$result = self::maybe_create_wp_user_for_ba_user( $ba_user );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$wp_user = get_userdata( $result );
+
+		return new WP_REST_Response(
+			array(
+				'wp_user_id'  => $result,
+				'user_login'  => $wp_user->user_login,
+				'user_email'  => $wp_user->user_email,
+				'linked'      => true,
+			),
+			200
+		);
 	}
 
 	/**

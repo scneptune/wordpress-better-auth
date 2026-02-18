@@ -74,11 +74,29 @@ class Better_Auth_Admin {
 			)
 		);
 
+		register_setting(
+			'general',
+			'better_auth_api_secret',
+			array(
+				'type'              => 'string',
+				'default'           => '',
+				'sanitize_callback' => 'sanitize_text_field',
+			)
+		);
+
 		add_settings_section(
 			'better_auth_settings',
 			__( 'Better Auth', 'better-auth' ),
 			array( $this, 'render_settings_section' ),
 			'general'
+		);
+
+		add_settings_field(
+			'better_auth_api_secret',
+			__( 'API Secret Key', 'better-auth' ),
+			array( $this, 'render_api_secret_field' ),
+			'general',
+			'better_auth_settings'
 		);
 
 		add_settings_field(
@@ -97,6 +115,30 @@ class Better_Auth_Admin {
 	 */
 	public function render_settings_section() {
 		echo '<p>' . esc_html__( 'Settings for the Better Auth plugin.', 'better-auth' ) . '</p>';
+	}
+
+	/**
+	 * Render the "API Secret Key" text field.
+	 *
+	 * @since 1.0.0
+	 */
+	public function render_api_secret_field() {
+		$value = get_option( 'better_auth_api_secret', '' );
+		?>
+		<input
+			type="password"
+			name="better_auth_api_secret"
+			value="<?php echo esc_attr( $value ); ?>"
+			class="regular-text"
+			autocomplete="off"
+		/>
+		<p class="description">
+			<?php esc_html_e(
+				'A shared secret used to authenticate server-to-server requests to the Better Auth REST API. Send this value as a Bearer token in the Authorization header. Must be set before the sync endpoint will accept requests.',
+				'better-auth'
+			); ?>
+		</p>
+		<?php
 	}
 
 	/**
