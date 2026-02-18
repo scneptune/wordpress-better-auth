@@ -1,5 +1,5 @@
 {
-	"name": "scneptune/better-auth",
+	"name": "scneptune/wordpress-better-auth",
 	"description": "WordPress plugin to add Better Auth schema for headless WordPress.",
 	"type": "wordpress-plugin",
 	"license": "GPL-2.0-or-later",
