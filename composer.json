@@ -1,0 +1,27 @@
+{
+	"name": "scneptune/better-auth",
+	"description": "WordPress plugin to add Better Auth schema for headless WordPress.",
+	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"homepage": "https://github.com/scneptune/wordpress-better-auth",
+	"authors": [
+		{
+			"name": "Stephen Neptune",
+			"homepage": "https://scneptune.com/",
+			"role": "Developer"
+		}
+	],
+	"require": {
+		"php": ">=7.4"
+	},
+	"support": {
+		"issues": "https://github.com/scneptune/wordpress-better-auth/issues",
+		"source": "https://github.com/scneptune/wordpress-better-auth"
+	},
+	"keywords": [
+		"wordpress",
+		"plugin",
+		"authentication",
+		"better-auth"
+	]
+}

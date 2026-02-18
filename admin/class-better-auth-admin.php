@@ -55,6 +55,90 @@ class Better_Auth_Admin {
 	}
 
 	/**
+	 * Register the plugin settings with the WordPress Settings API.
+	 *
+	 * Adds a "Better Auth" section to the General Settings page with a
+	 * checkbox that controls whether Better Auth-created WordPress users
+	 * are deleted when the plugin is uninstalled.
+	 *
+	 * @since 1.0.0
+	 */
+	public function register_settings() {
+		register_setting(
+			'general',
+			'better_auth_delete_users_on_uninstall',
+			array(
+				'type'              => 'boolean',
+				'default'           => false,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			)
+		);
+
+		add_settings_section(
+			'better_auth_settings',
+			__( 'Better Auth', 'better-auth' ),
+			array( $this, 'render_settings_section' ),
+			'general'
+		);
+
+		add_settings_field(
+			'better_auth_delete_users_on_uninstall',
+			__( 'Delete synced users on uninstall', 'better-auth' ),
+			array( $this, 'render_delete_users_field' ),
+			'general',
+			'better_auth_settings'
+		);
+	}
+
+	/**
+	 * Render the Better Auth settings section description.
+	 *
+	 * @since 1.0.0
+	 */
+	public function render_settings_section() {
+		echo '<p>' . esc_html__( 'Settings for the Better Auth plugin.', 'better-auth' ) . '</p>';
+	}
+
+	/**
+	 * Render the "Delete synced users on uninstall" checkbox.
+	 *
+	 * @since 1.0.0
+	 */
+	public function render_delete_users_field() {
+		$value = get_option( 'better_auth_delete_users_on_uninstall', false );
+		?>
+		<label>
+			<input
+				type="checkbox"
+				name="better_auth_delete_users_on_uninstall"
+				value="1"
+				<?php checked( $value ); ?>
+			/>
+			<?php esc_html_e(
+				'When the plugin is deleted, also delete WordPress users that were created by Better Auth sync. Each user will receive a password-reset email before their Better Auth data is removed.',
+				'better-auth'
+			); ?>
+		</label>
+		<?php
+	}
+
+	/**
+	 * Display any admin notices set by the plugin (e.g. deactivation warning).
+	 *
+	 * @since 1.0.0
+	 */
+	public function show_admin_notices() {
+		$notice = get_transient( 'better_auth_deactivation_notice' );
+		if ( $notice ) {
+			printf(
+				'<div class="notice notice-warning is-dismissible"><p>%s</p></div>',
+				esc_html( $notice )
+			);
+			delete_transient( 'better_auth_deactivation_notice' );
+		}
+	}
+
+	/**
 	 * Register the stylesheets for the admin area.
 	 *
 	 * @since    1.0.0

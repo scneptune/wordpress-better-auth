@@ -156,6 +156,8 @@ class Better_Auth {
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
+		$this->loader->add_action( 'admin_init', $plugin_admin, 'register_settings' );
+		$this->loader->add_action( 'admin_notices', $plugin_admin, 'show_admin_notices' );
 
 	}
 
@@ -213,6 +215,168 @@ class Better_Auth {
 	 */
 	public function get_version() {
 		return $this->version;
+	}
+
+	/*
+	|--------------------------------------------------------------------------
+	| WordPress ↔ Better Auth User Sync
+	|--------------------------------------------------------------------------
+	|
+	| One-way sync: Better Auth → WordPress.
+	|
+	| Whenever a user is created through the better-auth JS library, a
+	| corresponding WordPress user should be created in wp_users so the
+	| person can interact with the full WordPress ecosystem (comments,
+	| capabilities, etc.) without any changes to the core WP experience.
+	|
+	| sync_better_auth_users_to_wp() runs once during activation to pick
+	| up any Better Auth users created before the plugin was active.
+	| For ongoing sync, call maybe_create_wp_user_for_ba_user() from a
+	| REST endpoint or webhook.
+	|
+	*/
+
+	/**
+	 * Create a WordPress user for every Better Auth user that does not yet
+	 * have a matching WP account (matched by e-mail address).
+	 *
+	 * How it works:
+	 *  1. Query all rows from the Better Auth user table.
+	 *  2. For each row, check if a WP user with the same email exists.
+	 *  3. If not → create one with wp_insert_user() and a random password
+	 *     (the user authenticates via Better Auth, not wp-login.php).
+	 *  4. Store the Better Auth user ID as user-meta so the two records
+	 *     can be linked for future lookups.
+	 *
+	 * @since 1.0.0
+	 */
+	public static function sync_better_auth_users_to_wp() {
+		global $wpdb;
+
+		$ba_user_table = $wpdb->prefix . 'user';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$ba_users = $wpdb->get_results(
+			"SELECT id, name, email FROM `{$ba_user_table}`"
+		);
+
+		if ( empty( $ba_users ) ) {
+			return;
+		}
+
+		foreach ( $ba_users as $ba_user ) {
+			self::maybe_create_wp_user_for_ba_user( $ba_user );
+		}
+	}
+
+	/**
+	 * Create (or link) a single WordPress user for a Better Auth user row.
+	 *
+	 * Kept as its own method so it can be called individually from a REST
+	 * endpoint or webhook later for real-time sync.
+	 *
+	 * @since  1.0.0
+	 * @param  object $ba_user Row from the Better Auth user table (id, name, email).
+	 * @return int|WP_Error    The WordPress user ID on success, or WP_Error.
+	 */
+	public static function maybe_create_wp_user_for_ba_user( $ba_user ) {
+		$email = sanitize_email( $ba_user->email );
+
+		// If a WP user already has this email, just make sure the link exists.
+		$existing_wp_user = get_user_by( 'email', $email );
+		if ( $existing_wp_user ) {
+			if ( ! get_user_meta( $existing_wp_user->ID, 'better_auth_user_id', true ) ) {
+				update_user_meta(
+					$existing_wp_user->ID,
+					'better_auth_user_id',
+					sanitize_text_field( $ba_user->id )
+				);
+			}
+			return $existing_wp_user->ID;
+		}
+
+		// Derive a unique user_login from the name, falling back to the
+		// email-local part (everything before @).
+		$user_login = ! empty( $ba_user->name )
+			? sanitize_user( $ba_user->name, true )
+			: sanitize_user( strstr( $ba_user->email, '@', true ), true );
+
+		// Append a short random suffix if the login is already taken.
+		if ( username_exists( $user_login ) ) {
+			$user_login .= '_' . substr( wp_generate_password( 6, false ), 0, 6 );
+		}
+
+		// wp_generate_password() creates a long random string.  The user
+		// never needs to know it — they authenticate through Better Auth.
+		$wp_user_id = wp_insert_user( array(
+			'user_login'   => $user_login,
+			'user_email'   => $email,
+			'display_name' => sanitize_text_field( $ba_user->name ),
+			'user_pass'    => wp_generate_password( 24 ),
+			'role'         => 'subscriber',
+		) );
+
+		if ( is_wp_error( $wp_user_id ) ) {
+			return $wp_user_id;
+		}
+
+		// Store the Better Auth ↔ WP link as user-meta.
+		update_user_meta(
+			$wp_user_id,
+			'better_auth_user_id',
+			sanitize_text_field( $ba_user->id )
+		);
+
+		return $wp_user_id;
+	}
+
+	/*
+	|--------------------------------------------------------------------------
+	| OTP (One-Time Password) Support  –  Stub
+	|--------------------------------------------------------------------------
+	|
+	| Users who sign up via OTP never choose a WordPress password.  If they
+	| ever need to log in through wp-login.php (e.g. to access /wp-admin/),
+	| they'll need a way to set one.  The method below uses WordPress's
+	| built-in password-reset flow to send a "set your password" email.
+	|
+	| TODO: Wire this into a UI element or REST endpoint when OTP login is
+	|       implemented in a future iteration.
+	|
+	*/
+
+	/**
+	 * Send a password-setup / reset email for a user who was created via
+	 * OTP and therefore has no known WordPress password.
+	 *
+	 * Internally this calls retrieve_password() which generates a reset
+	 * key and emails the user.
+	 *
+	 * @since  1.0.0
+	 * @param  int $wp_user_id WordPress user ID.
+	 * @return true|WP_Error   True on success, WP_Error on failure.
+	 */
+	public static function send_password_setup_for_otp_user( $wp_user_id ) {
+		$user = get_userdata( $wp_user_id );
+		if ( ! $user ) {
+			return new WP_Error(
+				'invalid_user',
+				__( 'User not found.', 'better-auth' )
+			);
+		}
+
+		// Only act on users that were created via Better Auth.
+		$ba_id = get_user_meta( $wp_user_id, 'better_auth_user_id', true );
+		if ( empty( $ba_id ) ) {
+			return new WP_Error(
+				'not_better_auth_user',
+				__( 'This user is not linked to a Better Auth account.', 'better-auth' )
+			);
+		}
+
+		// retrieve_password() generates a reset key, stores it in the DB,
+		// and emails the user a link to wp-login.php?action=rp.
+		return retrieve_password( $user->user_login );
 	}
 
 }
