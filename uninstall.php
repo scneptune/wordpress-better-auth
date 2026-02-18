@@ -83,10 +83,10 @@ if ( ! empty( $ba_linked_users ) ) {
 */
 
 $tables_to_drop = array(
-	$wpdb->prefix . 'verification',
-	$wpdb->prefix . 'account',
-	$wpdb->prefix . 'session',
-	$wpdb->prefix . 'user',
+	$wpdb->prefix . 'ba_verification',
+	$wpdb->prefix . 'ba_account',
+	$wpdb->prefix . 'ba_session',
+	$wpdb->prefix . 'ba_user',
 );
 
 foreach ( $tables_to_drop as $table ) {

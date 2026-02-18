@@ -59,7 +59,7 @@ class Better_Auth_Deactivator {
 	private static function warn_if_ba_users_exist() {
 		global $wpdb;
 
-		$table = $wpdb->prefix . 'user';
+		$table = $wpdb->prefix . 'ba_user';
 
 		// Guard: the table may not exist if activation never completed.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching

@@ -33,7 +33,7 @@ class DeactivatorTest extends \PHPUnit\Framework\TestCase {
 		$wpdb = $this->mock_wpdb();
 
 		// Table doesn't exist — skip the warning path.
-		$wpdb->shouldReceive( 'prepare' )->andReturn( "SHOW TABLES LIKE 'wp_user'" );
+		$wpdb->shouldReceive( 'prepare' )->andReturn( "SHOW TABLES LIKE 'wp_ba_user'" );
 		$wpdb->shouldReceive( 'get_var' )->andReturn( null );
 
 		Functions\expect( 'wp_next_scheduled' )
@@ -52,16 +52,16 @@ class DeactivatorTest extends \PHPUnit\Framework\TestCase {
 
 		// Table exists.
 		$wpdb->shouldReceive( 'prepare' )
-			->with( 'SHOW TABLES LIKE %s', 'wp_user' )
-			->andReturn( "SHOW TABLES LIKE 'wp_user'" );
+			->with( 'SHOW TABLES LIKE %s', 'wp_ba_user' )
+			->andReturn( "SHOW TABLES LIKE 'wp_ba_user'" );
 
 		$wpdb->shouldReceive( 'get_var' )
-			->with( "SHOW TABLES LIKE 'wp_user'" )
-			->andReturn( 'wp_user' );
+			->with( "SHOW TABLES LIKE 'wp_ba_user'" )
+			->andReturn( 'wp_ba_user' );
 
 		// 5 user records exist.
 		$wpdb->shouldReceive( 'get_var' )
-			->with( "SELECT COUNT(*) FROM `wp_user`" )
+			->with( "SELECT COUNT(*) FROM `wp_ba_user`" )
 			->andReturn( 5 );
 
 		Functions\expect( '__' )->andReturnFirstArg();
@@ -83,15 +83,15 @@ class DeactivatorTest extends \PHPUnit\Framework\TestCase {
 
 		// Table exists but is empty.
 		$wpdb->shouldReceive( 'prepare' )
-			->with( 'SHOW TABLES LIKE %s', 'wp_user' )
-			->andReturn( "SHOW TABLES LIKE 'wp_user'" );
+			->with( 'SHOW TABLES LIKE %s', 'wp_ba_user' )
+			->andReturn( "SHOW TABLES LIKE 'wp_ba_user'" );
 
 		$wpdb->shouldReceive( 'get_var' )
-			->with( "SHOW TABLES LIKE 'wp_user'" )
-			->andReturn( 'wp_user' );
+			->with( "SHOW TABLES LIKE 'wp_ba_user'" )
+			->andReturn( 'wp_ba_user' );
 
 		$wpdb->shouldReceive( 'get_var' )
-			->with( "SELECT COUNT(*) FROM `wp_user`" )
+			->with( "SELECT COUNT(*) FROM `wp_ba_user`" )
 			->andReturn( 0 );
 
 		Functions\expect( 'set_transient' )->never();
@@ -107,7 +107,7 @@ class DeactivatorTest extends \PHPUnit\Framework\TestCase {
 		$wpdb = $this->mock_wpdb();
 
 		// Skip user-warning path.
-		$wpdb->shouldReceive( 'prepare' )->andReturn( "SHOW TABLES LIKE 'wp_user'" );
+		$wpdb->shouldReceive( 'prepare' )->andReturn( "SHOW TABLES LIKE 'wp_ba_user'" );
 		$wpdb->shouldReceive( 'get_var' )->andReturn( null );
 
 		Functions\expect( 'wp_next_scheduled' )

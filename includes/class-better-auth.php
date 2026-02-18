@@ -325,7 +325,7 @@ class Better_Auth {
 		}
 
 		// --- Validate the user exists in the Better Auth user table ---
-		$ba_user_table = $wpdb->prefix . 'user';
+		$ba_user_table = $wpdb->prefix . 'ba_user';
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$ba_user_row = $wpdb->get_row(
@@ -344,7 +344,7 @@ class Better_Auth {
 		}
 
 		// --- Validate the user has at least one account record ---
-		$ba_account_table = $wpdb->prefix . 'account';
+		$ba_account_table = $wpdb->prefix . 'ba_account';
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$account_count = (int) $wpdb->get_var(
@@ -465,7 +465,7 @@ class Better_Auth {
 	public static function sync_better_auth_users_to_wp() {
 		global $wpdb;
 
-		$ba_user_table = $wpdb->prefix . 'user';
+		$ba_user_table = $wpdb->prefix . 'ba_user';
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$ba_users = $wpdb->get_results(

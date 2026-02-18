@@ -45,7 +45,7 @@ class ActivatorTest extends \PHPUnit\Framework\TestCase {
 		$tables = array( 'verification', 'account', 'session', 'user' );
 
 		foreach ( $tables as $suffix ) {
-			$table = 'wp_' . $suffix;
+			$table = 'wp_ba_' . $suffix;
 
 			$wpdb->shouldReceive( 'prepare' )
 				->once()
@@ -67,12 +67,12 @@ class ActivatorTest extends \PHPUnit\Framework\TestCase {
 		// First table ('verification') is missing — should short-circuit.
 		$wpdb->shouldReceive( 'prepare' )
 			->once()
-			->with( 'SHOW TABLES LIKE %s', 'wp_verification' )
-			->andReturn( "SHOW TABLES LIKE 'wp_verification'" );
+			->with( 'SHOW TABLES LIKE %s', 'wp_ba_verification' )
+			->andReturn( "SHOW TABLES LIKE 'wp_ba_verification'" );
 
 		$wpdb->shouldReceive( 'get_var' )
 			->once()
-			->with( "SHOW TABLES LIKE 'wp_verification'" )
+			->with( "SHOW TABLES LIKE 'wp_ba_verification'" )
 			->andReturn( null );
 
 		$this->assertFalse( Better_Auth_Activator::check_for_existing_tables() );
@@ -90,7 +90,7 @@ class ActivatorTest extends \PHPUnit\Framework\TestCase {
 		Functions\expect( 'dbDelta' )
 			->once()
 			->with( Mockery::on( function ( $sql ) {
-				return str_contains( $sql, 'CREATE TABLE wp_user' )
+				return str_contains( $sql, 'CREATE TABLE wp_ba_user' )
 					&& str_contains( $sql, 'PRIMARY KEY  (id)' )
 					&& str_contains( $sql, 'emailVerified tinyint(1)' )
 					&& str_contains( $sql, 'KEY email (email)' );
@@ -108,7 +108,7 @@ class ActivatorTest extends \PHPUnit\Framework\TestCase {
 		Functions\expect( 'dbDelta' )
 			->once()
 			->with( Mockery::on( function ( $sql ) {
-				return str_contains( $sql, 'CREATE TABLE wp_session' )
+				return str_contains( $sql, 'CREATE TABLE wp_ba_session' )
 					&& str_contains( $sql, 'KEY userId (userId)' );
 			} ) );
 
@@ -124,7 +124,7 @@ class ActivatorTest extends \PHPUnit\Framework\TestCase {
 		Functions\expect( 'dbDelta' )
 			->once()
 			->with( Mockery::on( function ( $sql ) {
-				return str_contains( $sql, 'CREATE TABLE wp_account' )
+				return str_contains( $sql, 'CREATE TABLE wp_ba_account' )
 					&& str_contains( $sql, 'providerId' )
 					&& str_contains( $sql, 'password varchar(255)' );
 			} ) );
@@ -141,7 +141,7 @@ class ActivatorTest extends \PHPUnit\Framework\TestCase {
 		Functions\expect( 'dbDelta' )
 			->once()
 			->with( Mockery::on( function ( $sql ) {
-				return str_contains( $sql, 'CREATE TABLE wp_verification' )
+				return str_contains( $sql, 'CREATE TABLE wp_ba_verification' )
 					&& str_contains( $sql, 'identifier text' );
 			} ) );
 

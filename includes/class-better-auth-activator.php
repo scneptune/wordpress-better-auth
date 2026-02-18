@@ -39,7 +39,7 @@ class Better_Auth_Activator {
 		$core_suffixes = array( 'verification', 'account', 'session', 'user' );
 
 		foreach ( $core_suffixes as $suffix ) {
-			$table = $wpdb->prefix . $suffix;
+			$table = $wpdb->prefix . 'ba_' . $suffix;
 
 			// Use $wpdb->prepare() so the table name is safely quoted inside
 			// the LIKE pattern instead of being concatenated into raw SQL.
@@ -64,7 +64,7 @@ class Better_Auth_Activator {
 	public static function migrate_user_table() {
 		global $wpdb;
 
-		$table_name      = $wpdb->prefix . 'user';
+		$table_name      = $wpdb->prefix . 'ba_user';
 		$charset_collate = $wpdb->get_charset_collate();
 
 		// "boolean" is an alias for tinyint(1) in MySQL. Using tinyint(1)
@@ -97,7 +97,7 @@ class Better_Auth_Activator {
 	public static function migrate_session_table() {
 		global $wpdb;
 
-		$table_name      = $wpdb->prefix . 'session';
+		$table_name      = $wpdb->prefix . 'ba_session';
 		$charset_collate = $wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE {$table_name} (
@@ -125,7 +125,7 @@ class Better_Auth_Activator {
 	public static function migrate_account_table() {
 		global $wpdb;
 
-		$table_name      = $wpdb->prefix . 'account';
+		$table_name      = $wpdb->prefix . 'ba_account';
 		$charset_collate = $wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE {$table_name} (
@@ -158,7 +158,7 @@ class Better_Auth_Activator {
 	public static function migrate_verification_table() {
 		global $wpdb;
 
-		$table_name      = $wpdb->prefix . 'verification';
+		$table_name      = $wpdb->prefix . 'ba_verification';
 		$charset_collate = $wpdb->get_charset_collate();
 
 		$sql = "CREATE TABLE {$table_name} (
