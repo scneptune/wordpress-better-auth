@@ -1,74 +1,115 @@
-=== Plugin Name ===
-Contributors: (this should be a list of wordpress.org userid's)
+=== Better Auth WordPress Plugin ===
+Contributors: scneptune
 Donate link: https://scneptune.com/
-Tags: comments, spam
-Requires at least: 3.0.1
-Tested up to: 3.4
+Tags: headless, authentication, rest-api, woocommerce, user-sync
+Requires at least: 5.8
+Tested up to: 6.7
+Requires PHP: 7.4
 Stable tag: 2.0.0
 License: GPLv2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Here is a short description of the plugin.  This should be no more than 150 characters.  No markup here.
+Connect Better Auth with WordPress by creating required schema tables and exposing secure user sync REST endpoints.
 
 == Description ==
 
-This is the long description.  No limit, and you can use Markdown (as well as in the following sections).
+Better Auth WordPress Plugin is designed for headless or hybrid WordPress projects that use Better Auth for authentication.
 
-For backwards compatibility, if this section is missing, the full length of the short description will be used, and
-Markdown parsed.
+This plugin helps by:
 
-A few notes about the sections above:
+1. Creating and maintaining Better Auth schema tables in WordPress.
+2. Exposing secure REST endpoints to sync Better Auth users to WordPress users.
+3. Supporting WooCommerce customer profile sync (billing and shipping).
+4. Protecting sync routes with HMAC request signing and replay protection.
 
-*   "Contributors" is a comma separated list of wp.org/wp-plugins.org usernames
-*   "Tags" is a comma separated list of tags that apply to the plugin
-*   "Requires at least" is the lowest version that the plugin will work on
-*   "Tested up to" is the highest version that you've *successfully used to test the plugin*. Note that it might work on
-higher versions... this is just the highest one you've verified.
-*   Stable tag should indicate the Subversion "tag" of the latest stable version, or "trunk," if you use `/trunk/` for
-stable.
+Who this is for:
 
-    Note that the `readme.txt` of the stable tag is the one that is considered the defining one for the plugin, so
-if the `/trunk/readme.txt` file says that the stable tag is `2.0.0`, then it is `/tags/2.0.0/readme.txt` that'll be used
-for displaying information about the plugin.  In this situation, the only thing considered from the trunk `readme.txt`
-is the stable tag pointer.  Thus, if you develop in trunk, you can update the trunk `readme.txt` to reflect changes in
-your in-development version, without having that information incorrectly disclosed about the current stable version
-that lacks those changes -- as long as the trunk's `readme.txt` points to the correct stable tag.
+- Teams running a separate frontend app and WordPress as content/backend.
+- Projects that want Better Auth identity flows while still leveraging WordPress users and WooCommerce customer data.
 
-    If no stable tag is provided, it is assumed that trunk is stable, but you should specify "trunk" if that's where
-you put the stable version, in order to eliminate any doubt.
+Developer documentation:
+
+- Full technical guide and HMAC request examples are available in README.md.
 
 == Installation ==
 
-This section describes how to install the plugin and get it working.
+1. Upload the plugin folder to /wp-content/plugins/ (or install via Composer if your project supports it).
+2. Activate the plugin in WordPress Admin > Plugins.
+3. Go to Settings > General and find the Better Auth section.
+4. Generate API credentials (key id and secret).
+5. Configure your backend/service to call the plugin REST endpoints with HMAC headers.
 
-e.g.
+Optional:
 
-1. Upload `better-auth.php` to the `/wp-content/plugins/` directory
-1. Activate the plugin through the 'Plugins' menu in WordPress
-1. Place `<?php do_action('plugin_name_hook'); ?>` in your templates
+- If you use WooCommerce, billing and shipping sync routes will be available automatically when WooCommerce is active.
 
+== Frequently Asked Questions ==
+
+= What database tables does this plugin create? =
+
+On activation, the plugin creates:
+
+- {prefix}ba_user
+- {prefix}ba_session
+- {prefix}ba_account
+- {prefix}ba_verification
+
+= Which REST API routes are available? =
+
+All routes are under namespace: better-auth/v1
+
+- POST /create-user
+- PATCH /sync/billing
+- PATCH /sync/shipping (WooCommerce required)
+
+= How are requests authenticated? =
+
+Routes use HMAC signing headers:
+
+- X-BA-Key-Id
+- X-BA-Timestamp
+- X-BA-Nonce
+- X-BA-Signature
+
+The plugin verifies signature validity, timestamp drift, and nonce replay.
+
+= Is WooCommerce required? =
+
+No. WooCommerce is only required for billing/shipping sync routes. Core user sync can run without WooCommerce.
+
+= Is this a breaking release? =
+
+Yes. Version 2.0.0 removed the legacy sync-user route and standardizes sync integrations on HMAC-signed routes.
+
+= Where can developers find implementation details? =
+
+See README.md and CHANGELOG.md in the plugin repository.
 
 == Screenshots ==
 
-1. This screen shot description corresponds to screenshot-1.(png|jpg|jpeg|gif). Note that the screenshot is taken from
-the /assets directory or the directory that contains the stable readme.txt (tags or trunk). Screenshots in the /assets
-directory take precedence. For example, `/assets/screenshot-1.png` would win over `/tags/2.0.0/screenshot-1.png`
-(or jpg, jpeg, gif).
-2. This is the second screen shot
+1. Better Auth settings in WordPress General Settings.
+2. Generated key id and one-time secret display.
+3. Credential management actions (generate, revoke, rotate).
 
 == Changelog ==
 
-= 1.0 =
-* A change since the previous version.
-* Another change.
+= 2.0.0 =
 
-= 0.5 =
-* List versions from most recent at top to oldest at bottom.
+- Added keyring-based HMAC signing and verification for sync routes.
+- Added secure REST sync routes for user creation and WooCommerce billing/shipping sync.
+- Removed legacy sync-user REST route.
+- Added release workflow (tag-triggered PHPUnit) and improved developer documentation.
+
+= 1.0.1 =
+
+- Updated Better Auth schema table naming to ba_ prefix.
+
+= 1.0.0 =
+
+- Initial release with Better Auth schema migrations and foundational sync behavior.
 
 == Upgrade Notice ==
 
-= 1.0 =
-Upgrade notices describe the reason a user should upgrade.  No more than 300 characters.
+= 2.0.0 =
 
-= 0.5 =
-This version fixes a security related bug.  Upgrade immediately.
+This release removes the legacy sync-user endpoint. Update integrations to use HMAC-signed routes (/create-user, /sync/billing, /sync/shipping) before upgrading.

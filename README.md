@@ -205,7 +205,7 @@ Secrets are shown one-time at generation and then hidden.
 ### Local setup
 
 ```bash
-git clone https://github.com/mneptune/better-auth-wp-plugin.git
+git clone https://github.com/scneptune/wordpress-better-auth.git
 cd better-auth-wp-plugin
 composer install
 ```
