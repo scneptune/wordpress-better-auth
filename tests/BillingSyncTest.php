@@ -57,6 +57,38 @@ class Better_Auth_Test_Billing_WC_Customer_Stub {
 		self::$saved['billing_email'] = $value;
 	}
 
+	public function set_shipping_first_name( $value ) {
+		self::$saved['shipping_first_name'] = $value;
+	}
+
+	public function set_shipping_last_name( $value ) {
+		self::$saved['shipping_last_name'] = $value;
+	}
+
+	public function set_shipping_address_1( $value ) {
+		self::$saved['shipping_address_1'] = $value;
+	}
+
+	public function set_shipping_address_2( $value ) {
+		self::$saved['shipping_address_2'] = $value;
+	}
+
+	public function set_shipping_city( $value ) {
+		self::$saved['shipping_city'] = $value;
+	}
+
+	public function set_shipping_state( $value ) {
+		self::$saved['shipping_state'] = $value;
+	}
+
+	public function set_shipping_postcode( $value ) {
+		self::$saved['shipping_postcode'] = $value;
+	}
+
+	public function set_shipping_country( $value ) {
+		self::$saved['shipping_country'] = $value;
+	}
+
 	public function set_email( $value ) {
 		self::$saved['email'] = $value;
 	}
@@ -72,6 +104,7 @@ class BillingSyncTest extends \PHPUnit\Framework\TestCase {
 		parent::setUp();
 		Monkey\setUp();
 
+		require_once dirname( __DIR__ ) . '/includes/class-better-auth-request-signer.php';
 		require_once dirname( __DIR__ ) . '/includes/class-better-auth-user-sync.php';
 	}
 
@@ -91,13 +124,17 @@ class BillingSyncTest extends \PHPUnit\Framework\TestCase {
 		$body      = '{"ba_user_id":"ba-1","billing_address":{"city":"NYC"}}';
 
 		Functions\expect( 'get_option' )
-			->once()
-			->with( 'better_auth_api_secret', '' )
-			->andReturn( $secret );
-		Functions\expect( 'get_option' )
-			->once()
-			->with( 'better_auth_api_key_id', '' )
-			->andReturn( $key_id );
+			->twice()
+			->with( 'better_auth_api_keys', array() )
+			->andReturn(
+				array(
+					array(
+						'key_id' => $key_id,
+						'secret' => $secret,
+						'status' => 'active',
+					),
+				)
+			);
 		Functions\expect( '__' )->zeroOrMoreTimes()->andReturnFirstArg();
 		Functions\expect( 'get_transient' )
 			->once()
@@ -106,6 +143,9 @@ class BillingSyncTest extends \PHPUnit\Framework\TestCase {
 		Functions\expect( 'set_transient' )
 			->once()
 			->with( 'better_auth_sig_nonce_' . md5( $nonce ), 1, 600 );
+		Functions\expect( 'update_option' )
+			->once()
+			->with( 'better_auth_api_keys', Mockery::type( 'array' ), false );
 
 		$signature = $this->build_signature( $method, $route, $timestamp, $nonce, $body, $secret );
 		$request   = $this->build_signed_request( $method, $route, $body, $key_id, $timestamp, $nonce, $signature );
@@ -127,18 +167,23 @@ class BillingSyncTest extends \PHPUnit\Framework\TestCase {
 
 		Functions\expect( 'get_option' )
 			->once()
-			->with( 'better_auth_api_secret', '' )
-			->andReturn( $secret );
-		Functions\expect( 'get_option' )
-			->once()
-			->with( 'better_auth_api_key_id', '' )
-			->andReturn( $key_id );
+			->with( 'better_auth_api_keys', array() )
+			->andReturn(
+				array(
+					array(
+						'key_id' => $key_id,
+						'secret' => $secret,
+						'status' => 'active',
+					),
+				)
+			);
 		Functions\expect( '__' )->zeroOrMoreTimes()->andReturnFirstArg();
 		Functions\expect( 'get_transient' )
 			->once()
 			->with( 'better_auth_sig_nonce_' . md5( $nonce ) )
 			->andReturn( false );
 		Functions\expect( 'set_transient' )->never();
+		Functions\expect( 'update_option' )->never();
 
 		$request = $this->build_signed_request( $method, $route, $body, $key_id, $timestamp, $nonce, 'bad-signature' );
 		$result  = $sync->verify_hmac_sync_signature( $request );
@@ -160,18 +205,23 @@ class BillingSyncTest extends \PHPUnit\Framework\TestCase {
 
 		Functions\expect( 'get_option' )
 			->once()
-			->with( 'better_auth_api_secret', '' )
-			->andReturn( $secret );
-		Functions\expect( 'get_option' )
-			->once()
-			->with( 'better_auth_api_key_id', '' )
-			->andReturn( $key_id );
+			->with( 'better_auth_api_keys', array() )
+			->andReturn(
+				array(
+					array(
+						'key_id' => $key_id,
+						'secret' => $secret,
+						'status' => 'active',
+					),
+				)
+			);
 		Functions\expect( '__' )->zeroOrMoreTimes()->andReturnFirstArg();
 		Functions\expect( 'get_transient' )
 			->once()
 			->with( 'better_auth_sig_nonce_' . md5( $nonce ) )
 			->andReturn( true );
 		Functions\expect( 'set_transient' )->never();
+		Functions\expect( 'update_option' )->never();
 
 		$request = $this->build_signed_request( $method, $route, $body, $key_id, $timestamp, $nonce, $signature );
 		$result  = $sync->verify_hmac_sync_signature( $request );
@@ -252,6 +302,69 @@ class BillingSyncTest extends \PHPUnit\Framework\TestCase {
 		$this->assertTrue( Better_Auth_Test_Billing_WC_Customer_Stub::$saved['saved'] );
 		$this->assertSame( 'Jane', Better_Auth_Test_Billing_WC_Customer_Stub::$saved['billing_first_name'] );
 		$this->assertSame( 'jane@example.com', Better_Auth_Test_Billing_WC_Customer_Stub::$saved['billing_email'] );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_sync_shipping_details_updates_wp_and_woo_data(): void {
+		if ( ! class_exists( 'WooCommerce', false ) ) {
+			class_alias( Better_Auth_Test_Billing_WooCommerce_Stub::class, 'WooCommerce' );
+		}
+
+		if ( ! class_exists( 'WC_Customer', false ) ) {
+			class_alias( Better_Auth_Test_Billing_WC_Customer_Stub::class, 'WC_Customer' );
+		}
+
+		$sync = new Better_Auth_User_Sync();
+
+		Functions\when( 'sanitize_text_field' )->returnArg();
+		Functions\when( 'sanitize_email' )->returnArg();
+		Functions\expect( 'wp_update_user' )->never();
+		Functions\expect( 'update_user_meta' )->zeroOrMoreTimes()->andReturn( true );
+
+		global $wpdb;
+		$wpdb = new class() {
+			public $prefix = 'wp_';
+
+			public function prepare( $query, $value ) {
+				return str_replace( '%s', "'" . addslashes( $value ) . "'", $query );
+			}
+
+			public function get_row( $query ) {
+				return (object) array( 'wpUserId' => 444 );
+			}
+		};
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'ba_user_id', 'ba-ship-1' );
+		$request->set_param(
+			'shipping_address',
+			array(
+				'first_name' => 'Ship',
+				'last_name'  => 'Tester',
+				'address_1'  => '500 Test Lane',
+				'address_2'  => '',
+				'city'       => 'Miami',
+				'state'      => 'FL',
+				'postcode'   => '33101',
+				'country'    => 'US',
+			)
+		);
+
+		$response = $sync->sync_shipping_details( $request );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 444, $data['wp_user_id'] );
+		$this->assertSame( 'ba-ship-1', $data['better_auth_user_id'] );
+		$this->assertTrue( $data['woocommerce_customer_updated'] );
+		$this->assertSame( 'Miami', $data['shipping_address']['city'] );
+
+		$this->assertTrue( Better_Auth_Test_Billing_WC_Customer_Stub::$saved['saved'] );
+		$this->assertSame( 'Ship', Better_Auth_Test_Billing_WC_Customer_Stub::$saved['shipping_first_name'] );
+		$this->assertSame( 'Miami', Better_Auth_Test_Billing_WC_Customer_Stub::$saved['shipping_city'] );
 	}
 
 	private function build_signed_request( $method, $route, $body, $key_id, $timestamp, $nonce, $signature ) {

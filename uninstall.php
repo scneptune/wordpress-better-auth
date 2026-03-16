@@ -102,6 +102,9 @@ foreach ( $tables_to_drop as $table ) {
 
 delete_option( 'better_auth_delete_users_on_uninstall' );
 delete_option( 'better_auth_api_secret' );
+delete_option( 'better_auth_api_key_id' );
+delete_option( 'better_auth_api_keys' );
 
 // Remove any lingering transients.
 delete_transient( 'better_auth_deactivation_notice' );
+delete_transient( 'better_auth_api_last_generated' );

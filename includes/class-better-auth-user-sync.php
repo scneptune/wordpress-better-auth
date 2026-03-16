@@ -16,20 +16,26 @@ defined( 'ABSPATH' ) || exit;
 class Better_Auth_User_Sync {
 
     /**
-     * HMAC timestamp drift tolerance in seconds.
+     * Request signer and verifier service.
      *
      * @since 1.0.1
-     * @var int
+     * @var Better_Auth_Request_Signer
      */
-    const SIGNATURE_TIMESTAMP_TTL = 300;
+    private $request_signer;
 
     /**
-     * Nonce replay cache TTL in seconds.
+     * Create a new user sync service instance.
      *
      * @since 1.0.1
-     * @var int
+     * @param Better_Auth_Request_Signer|null $request_signer Optional signer dependency.
      */
-    const NONCE_CACHE_TTL = 600;
+    public function __construct( $request_signer = null ) {
+        if ( null === $request_signer ) {
+            $request_signer = new Better_Auth_Request_Signer();
+        }
+
+        $this->request_signer = $request_signer;
+    }
 
     /**
      * Register Better Auth user sync routes.
@@ -43,7 +49,7 @@ class Better_Auth_User_Sync {
             array(
                 'methods'             => WP_REST_Server::CREATABLE,
                 'callback'            => array( $this, 'create_wp_user_from_better_auth_user' ),
-                'permission_callback' => array( $this, 'verify_sync_secret' ),
+                'permission_callback' => array( $this, 'verify_hmac_sync_signature' ),
                 'args'                => array(
                     'email' => array(
                         'required'          => true,
@@ -99,6 +105,27 @@ class Better_Auth_User_Sync {
                     ),
                 )
             );
+
+            register_rest_route(
+                'better-auth/v1',
+                '/sync/shipping',
+                array(
+                    'methods'             => 'PATCH',
+                    'callback'            => array( $this, 'sync_shipping_details' ),
+                    'permission_callback' => array( $this, 'verify_hmac_sync_signature' ),
+                    'args'                => array(
+                        'ba_user_id' => array(
+                            'required'          => true,
+                            'type'              => 'string',
+                            'sanitize_callback' => 'sanitize_text_field',
+                        ),
+                        'shipping_address' => array(
+                            'required' => true,
+                            'type'     => 'object',
+                        ),
+                    ),
+                )
+            );
         }
     }
 
@@ -119,120 +146,7 @@ class Better_Auth_User_Sync {
      * @return true|WP_Error
      */
     public function verify_hmac_sync_signature( $request ) {
-        $stored_secret = get_option( 'better_auth_api_secret', '' );
-        if ( empty( $stored_secret ) ) {
-            return new WP_Error(
-                'rest_forbidden_no_secret',
-                __( 'The Better Auth API secret has not been configured.', 'better-auth' ),
-                array( 'status' => 403 )
-            );
-        }
-
-        $key_id         = (string) $request->get_header( 'X-BA-Key-Id' );
-        $timestamp      = (string) $request->get_header( 'X-BA-Timestamp' );
-        $nonce          = (string) $request->get_header( 'X-BA-Nonce' );
-        $sent_signature = (string) $request->get_header( 'X-BA-Signature' );
-
-        if ( empty( $timestamp ) || empty( $nonce ) || empty( $sent_signature ) ) {
-            return new WP_Error(
-                'rest_bad_signature_headers',
-                __( 'Missing required signature headers.', 'better-auth' ),
-                array( 'status' => 400 )
-            );
-        }
-
-        if ( ! ctype_digit( $timestamp ) ) {
-            return new WP_Error(
-                'rest_bad_signature_timestamp',
-                __( 'Invalid signature timestamp.', 'better-auth' ),
-                array( 'status' => 400 )
-            );
-        }
-
-        $expected_key_id = get_option( 'better_auth_api_key_id', '' );
-        if ( ! empty( $expected_key_id ) && ( empty( $key_id ) || ! hash_equals( $expected_key_id, $key_id ) ) ) {
-            return new WP_Error(
-                'rest_forbidden_invalid_key_id',
-                __( 'Invalid key id.', 'better-auth' ),
-                array( 'status' => 403 )
-            );
-        }
-
-        $timestamp_int = (int) $timestamp;
-        if ( abs( time() - $timestamp_int ) > self::SIGNATURE_TIMESTAMP_TTL ) {
-            return new WP_Error(
-                'rest_forbidden_stale_request',
-                __( 'Stale request timestamp.', 'better-auth' ),
-                array( 'status' => 403 )
-            );
-        }
-
-        if ( $this->is_nonce_replayed( $nonce ) ) {
-            return new WP_Error(
-                'rest_forbidden_replay',
-                __( 'Replay detected for nonce.', 'better-auth' ),
-                array( 'status' => 409 )
-            );
-        }
-
-        $method    = method_exists( $request, 'get_method' ) ? strtoupper( $request->get_method() ) : 'PATCH';
-        $route     = method_exists( $request, 'get_route' ) ? (string) $request->get_route() : '/better-auth/v1/sync/billing';
-        $raw_body  = $this->get_request_body_for_signature( $request );
-        $body_hash = hash( 'sha256', $raw_body );
-
-        $payload = implode(
-            "\n",
-            array(
-                $method,
-                $route,
-                $timestamp,
-                $nonce,
-                $body_hash,
-            )
-        );
-
-        $expected_signature = hash_hmac( 'sha256', $payload, $stored_secret );
-        if ( ! hash_equals( $expected_signature, $sent_signature ) ) {
-            return new WP_Error(
-                'rest_forbidden_invalid_signature',
-                __( 'Invalid request signature.', 'better-auth' ),
-                array( 'status' => 403 )
-            );
-        }
-
-        $this->mark_nonce_as_used( $nonce );
-
-        return true;
-    }
-
-    /**
-     * Verify the shared secret used by the sync route.
-     *
-     * @since 1.0.0
-     * @param WP_REST_Request $request The incoming request.
-     * @return true|WP_Error
-     */
-    public function verify_sync_secret( $request ) {
-        $stored_secret = get_option( 'better_auth_api_secret', '' );
-        $request_secret = (string) $request->get_header( 'X-Better-Auth-Secret' );
-
-        if ( empty( $stored_secret ) ) {
-            return new WP_Error(
-                'rest_forbidden_no_secret',
-                __( 'The Better Auth API secret has not been configured.', 'better-auth' ),
-                array( 'status' => 403 )
-            );
-        }
-
-        if ( empty( $request_secret ) || ! hash_equals( $stored_secret, $request_secret ) ) {
-            return new WP_Error(
-                'rest_forbidden_invalid_secret',
-                __( 'Invalid or missing sync secret.', 'better-auth' ),
-                array( 'status' => 403 )
-            );
-        }
-
-        return true;
+        return $this->request_signer->verify_request( $request );
     }
 
     /**
@@ -338,16 +252,48 @@ class Better_Auth_User_Sync {
      * @return WP_REST_Response|WP_Error
      */
     public function sync_billing_details( $request ) {
+        return $this->sync_address_details( $request, 'billing' );
+    }
+
+    /**
+     * Create or update WooCommerce/WordPress shipping details for a Better Auth user.
+     *
+     * @since 1.0.1
+     * @param WP_REST_Request $request Incoming request.
+     * @return WP_REST_Response|WP_Error
+     */
+    public function sync_shipping_details( $request ) {
+        return $this->sync_address_details( $request, 'shipping' );
+    }
+
+    /**
+     * Shared address sync logic for billing and shipping updates.
+     *
+     * @since 1.0.1
+     * @param WP_REST_Request $request      Incoming request.
+     * @param string          $address_type Address type: billing|shipping.
+     * @return WP_REST_Response|WP_Error
+     */
+    private function sync_address_details( $request, $address_type ) {
         if ( ! $this->is_woocommerce_available() ) {
             return new WP_Error(
                 'rest_woocommerce_unavailable',
-                __( 'WooCommerce is not active. Billing sync endpoint is unavailable.', 'better-auth' ),
+                __( 'WooCommerce is not active. Address sync endpoint is unavailable.', 'better-auth' ),
                 array( 'status' => 503 )
             );
         }
 
-        $ba_user_id       = sanitize_text_field( $request->get_param( 'ba_user_id' ) );
-        $billing_address  = $request->get_param( 'billing_address' );
+        if ( ! in_array( $address_type, array( 'billing', 'shipping' ), true ) ) {
+            return new WP_Error(
+                'rest_invalid_address_type',
+                __( 'Invalid address type for sync.', 'better-auth' ),
+                array( 'status' => 400 )
+            );
+        }
+
+        $address_param = $address_type . '_address';
+        $ba_user_id    = sanitize_text_field( $request->get_param( 'ba_user_id' ) );
+        $address_input = $request->get_param( $address_param );
 
         if ( empty( $ba_user_id ) ) {
             return new WP_Error(
@@ -357,10 +303,10 @@ class Better_Auth_User_Sync {
             );
         }
 
-        if ( ! is_array( $billing_address ) ) {
+        if ( ! is_array( $address_input ) ) {
             return new WP_Error(
-                'rest_invalid_billing_payload',
-                __( 'The "billing_address" field must be an object.', 'better-auth' ),
+                'rest_invalid_address_payload',
+                __( 'The address payload must be an object.', 'better-auth' ),
                 array( 'status' => 400 )
             );
         }
@@ -374,94 +320,123 @@ class Better_Auth_User_Sync {
             );
         }
 
-        $billing = array(
-            'first_name' => sanitize_text_field( isset( $billing_address['first_name'] ) ? $billing_address['first_name'] : '' ),
-            'last_name'  => sanitize_text_field( isset( $billing_address['last_name'] ) ? $billing_address['last_name'] : '' ),
-            'address_1'  => sanitize_text_field( isset( $billing_address['address_1'] ) ? $billing_address['address_1'] : '' ),
-            'address_2'  => sanitize_text_field( isset( $billing_address['address_2'] ) ? $billing_address['address_2'] : '' ),
-            'city'       => sanitize_text_field( isset( $billing_address['city'] ) ? $billing_address['city'] : '' ),
-            'state'      => sanitize_text_field( isset( $billing_address['state'] ) ? $billing_address['state'] : '' ),
-            'postcode'   => sanitize_text_field( isset( $billing_address['postcode'] ) ? $billing_address['postcode'] : '' ),
-            'country'    => sanitize_text_field( isset( $billing_address['country'] ) ? $billing_address['country'] : '' ),
-            'email'      => sanitize_email( isset( $billing_address['email'] ) ? $billing_address['email'] : '' ),
-            'phone'      => sanitize_text_field( isset( $billing_address['phone'] ) ? $billing_address['phone'] : '' ),
+        $address = array(
+            'first_name' => sanitize_text_field( isset( $address_input['first_name'] ) ? $address_input['first_name'] : '' ),
+            'last_name'  => sanitize_text_field( isset( $address_input['last_name'] ) ? $address_input['last_name'] : '' ),
+            'address_1'  => sanitize_text_field( isset( $address_input['address_1'] ) ? $address_input['address_1'] : '' ),
+            'address_2'  => sanitize_text_field( isset( $address_input['address_2'] ) ? $address_input['address_2'] : '' ),
+            'city'       => sanitize_text_field( isset( $address_input['city'] ) ? $address_input['city'] : '' ),
+            'state'      => sanitize_text_field( isset( $address_input['state'] ) ? $address_input['state'] : '' ),
+            'postcode'   => sanitize_text_field( isset( $address_input['postcode'] ) ? $address_input['postcode'] : '' ),
+            'country'    => sanitize_text_field( isset( $address_input['country'] ) ? $address_input['country'] : '' ),
         );
 
-        if ( ! empty( $billing_address['email'] ) && empty( $billing['email'] ) ) {
-            return new WP_Error(
-                'rest_invalid_email',
-                __( 'Invalid billing email address.', 'better-auth' ),
-                array( 'status' => 400 )
-            );
+        if ( 'billing' === $address_type ) {
+            $address['email'] = sanitize_email( isset( $address_input['email'] ) ? $address_input['email'] : '' );
+            $address['phone'] = sanitize_text_field( isset( $address_input['phone'] ) ? $address_input['phone'] : '' );
+
+            if ( ! empty( $address_input['email'] ) && empty( $address['email'] ) ) {
+                return new WP_Error(
+                    'rest_invalid_email',
+                    __( 'Invalid billing email address.', 'better-auth' ),
+                    array( 'status' => 400 )
+                );
+            }
         }
 
         $meta_map = array(
-            'first_name' => 'billing_first_name',
-            'last_name'  => 'billing_last_name',
-            'address_1'  => 'billing_address_1',
-            'address_2'  => 'billing_address_2',
-            'city'       => 'billing_city',
-            'state'      => 'billing_state',
-            'postcode'   => 'billing_postcode',
-            'country'    => 'billing_country',
-            'email'      => 'billing_email',
-            'phone'      => 'billing_phone',
+            'first_name' => $address_type . '_first_name',
+            'last_name'  => $address_type . '_last_name',
+            'address_1'  => $address_type . '_address_1',
+            'address_2'  => $address_type . '_address_2',
+            'city'       => $address_type . '_city',
+            'state'      => $address_type . '_state',
+            'postcode'   => $address_type . '_postcode',
+            'country'    => $address_type . '_country',
         );
 
+        if ( 'billing' === $address_type ) {
+            $meta_map['email'] = 'billing_email';
+            $meta_map['phone'] = 'billing_phone';
+        }
+
         foreach ( $meta_map as $field_key => $meta_key ) {
-            update_user_meta( $wp_user_id, $meta_key, $billing[ $field_key ] );
+            update_user_meta( $wp_user_id, $meta_key, isset( $address[ $field_key ] ) ? $address[ $field_key ] : '' );
         }
 
-        // Keep the OTP contact value synchronized with billing phone.
-        update_user_meta( $wp_user_id, 'phone_number', $billing['phone'] );
+        if ( 'billing' === $address_type ) {
+            // Keep the OTP contact value synchronized with billing phone.
+            update_user_meta( $wp_user_id, 'phone_number', $address['phone'] );
 
-        if ( ! empty( $billing['email'] ) ) {
-            $user_update_result = wp_update_user(
-                array(
-                    'ID'         => $wp_user_id,
-                    'user_email' => $billing['email'],
-                )
-            );
+            if ( ! empty( $address['email'] ) ) {
+                $user_update_result = wp_update_user(
+                    array(
+                        'ID'         => $wp_user_id,
+                        'user_email' => $address['email'],
+                    )
+                );
 
-            if ( is_wp_error( $user_update_result ) ) {
-                return $user_update_result;
+                if ( is_wp_error( $user_update_result ) ) {
+                    return $user_update_result;
+                }
             }
         }
 
-        $woocommerce_customer_updated = false;
-
-        if ( $this->is_woocommerce_available() ) {
-            $customer_class = 'WC_Customer';
-            $customer       = new $customer_class( $wp_user_id );
-
-            $customer->set_billing_first_name( $billing['first_name'] );
-            $customer->set_billing_last_name( $billing['last_name'] );
-            $customer->set_billing_address_1( $billing['address_1'] );
-            $customer->set_billing_address_2( $billing['address_2'] );
-            $customer->set_billing_city( $billing['city'] );
-            $customer->set_billing_state( $billing['state'] );
-            $customer->set_billing_postcode( $billing['postcode'] );
-            $customer->set_billing_country( $billing['country'] );
-            $customer->set_billing_phone( $billing['phone'] );
-            $customer->set_billing_email( $billing['email'] );
-
-            if ( ! empty( $billing['email'] ) && method_exists( $customer, 'set_email' ) ) {
-                $customer->set_email( $billing['email'] );
-            }
-
-            $customer->save();
-            $woocommerce_customer_updated = true;
-        }
+        $woocommerce_customer_updated = $this->update_woocommerce_customer_address( $wp_user_id, $address_type, $address );
 
         return new WP_REST_Response(
             array(
-                'wp_user_id'                  => $wp_user_id,
-                'better_auth_user_id'         => $ba_user_id,
+                'wp_user_id'                   => $wp_user_id,
+                'better_auth_user_id'          => $ba_user_id,
                 'woocommerce_customer_updated' => $woocommerce_customer_updated,
-                'billing_address'             => $billing,
+                $address_param                 => $address,
             ),
             200
         );
+    }
+
+    /**
+     * Apply billing/shipping fields onto the WooCommerce customer object.
+     *
+     * @since 1.0.1
+     * @param int    $wp_user_id   WordPress user id.
+     * @param string $address_type Address type: billing|shipping.
+     * @param array  $address      Sanitized address data.
+     * @return bool
+     */
+    private function update_woocommerce_customer_address( $wp_user_id, $address_type, $address ) {
+        if ( ! $this->is_woocommerce_available() ) {
+            return false;
+        }
+
+        $customer_class = 'WC_Customer';
+        $customer       = new $customer_class( $wp_user_id );
+
+        $setter_prefix = 'set_' . $address_type . '_';
+        $address_keys  = array( 'first_name', 'last_name', 'address_1', 'address_2', 'city', 'state', 'postcode', 'country' );
+
+        foreach ( $address_keys as $key ) {
+            $setter = $setter_prefix . $key;
+            if ( method_exists( $customer, $setter ) ) {
+                $customer->{$setter}( isset( $address[ $key ] ) ? $address[ $key ] : '' );
+            }
+        }
+
+        if ( 'billing' === $address_type ) {
+            if ( method_exists( $customer, 'set_billing_phone' ) ) {
+                $customer->set_billing_phone( isset( $address['phone'] ) ? $address['phone'] : '' );
+            }
+            if ( method_exists( $customer, 'set_billing_email' ) ) {
+                $customer->set_billing_email( isset( $address['email'] ) ? $address['email'] : '' );
+            }
+            if ( ! empty( $address['email'] ) && method_exists( $customer, 'set_email' ) ) {
+                $customer->set_email( $address['email'] );
+            }
+        }
+
+        $customer->save();
+
+        return true;
     }
 
     /**
@@ -577,41 +552,4 @@ class Better_Auth_User_Sync {
         return (int) $row->wpUserId;
     }
 
-    /**
-     * Return a stable raw body string used for signature hashing.
-     *
-     * @since 1.0.1
-     * @param WP_REST_Request $request Incoming request.
-     * @return string
-     */
-    private function get_request_body_for_signature( $request ) {
-        if ( method_exists( $request, 'get_body' ) ) {
-            return (string) $request->get_body();
-        }
-
-        return '';
-    }
-
-    /**
-     * Determine if nonce has already been used.
-     *
-     * @since 1.0.1
-     * @param string $nonce Nonce value.
-     * @return bool
-     */
-    private function is_nonce_replayed( $nonce ) {
-        $cache_key = 'better_auth_sig_nonce_' . md5( $nonce );
-        return (bool) get_transient( $cache_key );
-    }
-
-    /**
-     * Persist nonce to short-lived cache for replay protection.
-     *
-     * @since 1.0.1
-     * @param string $nonce Nonce value.
-     */
-    private function mark_nonce_as_used( $nonce ) {
-        $cache_key = 'better_auth_sig_nonce_' . md5( $nonce );
-        set_transient( $cache_key, 1, self::NONCE_CACHE_TTL );
-    }
 }

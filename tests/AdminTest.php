@@ -35,7 +35,7 @@ class AdminTest extends \PHPUnit\Framework\TestCase {
 
 		Functions\expect( 'register_setting' )
 			->once()
-			->with( 'general', 'better_auth_api_secret', Mockery::type( 'array' ) );
+			->with( 'general', 'better_auth_api_keys', Mockery::type( 'array' ) );
 
 		Functions\expect( '__' )->andReturnFirstArg();
 
@@ -103,26 +103,30 @@ class AdminTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	//  render_api_secret_field()
+	//  render_api_keys_field()
 	// ------------------------------------------------------------------
 
-	public function test_render_api_secret_field_outputs_password_input(): void {
+	public function test_render_api_keys_field_outputs_management_ui(): void {
 		$admin = new Better_Auth_Admin( 'better-auth', '1.0.0' );
 
 		Functions\expect( 'get_option' )
-			->with( 'better_auth_api_secret', '' )
-			->andReturn( 'test-secret' );
+			->with( 'better_auth_api_keys', array() )
+			->andReturn( array() );
 
-		Functions\expect( 'esc_attr' )->andReturn( 'test-secret' );
-		Functions\expect( 'esc_html_e' )->andReturn( '' );
+		Functions\expect( 'get_transient' )
+			->with( 'better_auth_api_last_generated' )
+			->andReturn( false );
+
+		Functions\expect( 'wp_nonce_field' )->twice();
+		Functions\expect( 'submit_button' )->twice();
+		Functions\expect( 'esc_html_e' )->zeroOrMoreTimes()->andReturn( '' );
+		Functions\expect( '__' )->zeroOrMoreTimes()->andReturnFirstArg();
 
 		ob_start();
-		$admin->render_api_secret_field();
+		$admin->render_api_keys_field();
 		$output = ob_get_clean();
 
-		$this->assertStringContainsString( 'type="password"', $output );
-		$this->assertStringContainsString( 'name="better_auth_api_secret"', $output );
-		$this->assertStringContainsString( 'test-secret', $output );
+		$this->assertStringContainsString( 'better_auth_api_key_action', $output );
 	}
 
 	// ------------------------------------------------------------------

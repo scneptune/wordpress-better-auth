@@ -477,7 +477,7 @@ class BetterAuthTest extends \PHPUnit\Framework\TestCase {
 		$ba = $this->make_better_auth_instance();
 
 		$this->assertSame( 'better-auth', $ba->get_plugin_name() );
-		$this->assertSame( '1.0.0', $ba->get_version() );
+		$this->assertSame( BETTER_AUTH_VERSION, $ba->get_version() );
 	}
 
 	public function test_get_loader_returns_loader_instance(): void {

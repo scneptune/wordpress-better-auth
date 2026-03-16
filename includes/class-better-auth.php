@@ -133,12 +133,18 @@ class Better_Auth {
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-better-auth-public.php';
 
 		/**
+		 * The class responsible for Better Auth request signing verification.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-better-auth-request-signer.php';
+
+		/**
 		 * The class responsible for Better Auth to WordPress user sync REST endpoints.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-better-auth-user-sync.php';
 
+		$request_signer = new Better_Auth_Request_Signer();
 		$this->loader = new Better_Auth_Loader();
-		$this->user_sync = new Better_Auth_User_Sync();
+		$this->user_sync = new Better_Auth_User_Sync( $request_signer );
 
 	}
 

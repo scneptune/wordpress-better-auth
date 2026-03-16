@@ -40,6 +40,7 @@ class UserSyncTest extends \PHPUnit\Framework\TestCase {
 		parent::setUp();
 		Monkey\setUp();
 
+		require_once dirname( __DIR__ ) . '/includes/class-better-auth-request-signer.php';
 		require_once dirname( __DIR__ ) . '/includes/class-better-auth-user-sync.php';
 	}
 
@@ -60,7 +61,9 @@ class UserSyncTest extends \PHPUnit\Framework\TestCase {
 					function ( $args ) {
 						return isset( $args['callback'], $args['permission_callback'] )
 							&& is_array( $args['callback'] )
-							&& is_array( $args['permission_callback'] );
+							&& is_array( $args['permission_callback'] )
+							&& isset( $args['permission_callback'][1] )
+							&& 'verify_hmac_sync_signature' === $args['permission_callback'][1];
 					}
 				)
 			);
@@ -69,38 +72,17 @@ class UserSyncTest extends \PHPUnit\Framework\TestCase {
 		$this->addToAssertionCount( 1 );
 	}
 
-	public function test_verify_secret_rejects_when_secret_missing(): void {
+	public function test_verify_hmac_rejects_missing_headers(): void {
 		$sync = new Better_Auth_User_Sync();
 
-		Functions\expect( 'get_option' )
-			->once()
-			->with( 'better_auth_api_secret', '' )
-			->andReturn( '' );
 		Functions\expect( '__' )->andReturnFirstArg();
 
 		$request = new WP_REST_Request();
-		$request->set_header( 'X-Better-Auth-Secret', 'abc' );
 
-		$result = $sync->verify_sync_secret( $request );
+		$result = $sync->verify_hmac_sync_signature( $request );
 
 		$this->assertInstanceOf( WP_Error::class, $result );
-		$this->assertSame( 'rest_forbidden_no_secret', $result->get_error_code() );
-	}
-
-	public function test_verify_secret_accepts_matching_header(): void {
-		$sync = new Better_Auth_User_Sync();
-
-		Functions\expect( 'get_option' )
-			->once()
-			->with( 'better_auth_api_secret', '' )
-			->andReturn( 'my-secret' );
-
-		$request = new WP_REST_Request();
-		$request->set_header( 'X-Better-Auth-Secret', 'my-secret' );
-
-		$result = $sync->verify_sync_secret( $request );
-
-		$this->assertTrue( $result );
+		$this->assertSame( 'rest_bad_signature_headers', $result->get_error_code() );
 	}
 
 	public function test_create_user_without_woocommerce_uses_subscriber_role(): void {
