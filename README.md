@@ -55,6 +55,98 @@ At activation, the plugin creates Better Auth schema tables (if missing) via `db
 
 During runtime, it provides sync endpoints for Better Auth -> WordPress/WooCommerce user data flows.
 
+## HMAC Signing Guide (ALL API ROUTES MUST BE HMAC SIGNED)
+
+Each request must include:
+
+- `X-BA-Key-Id`
+- `X-BA-Timestamp` (unix seconds)
+- `X-BA-Nonce` (unique per request)
+- `X-BA-Signature`
+
+Signature payload format:
+
+```text
+METHOD + "\n" + ROUTE + "\n" + TIMESTAMP + "\n" + NONCE + "\n" + SHA256(RAW_BODY)
+```
+
+Then:
+
+```text
+X-BA-Signature = HMAC_SHA256(payload, client_secret)
+```
+
+Important:
+
+- `ROUTE` must match WordPress route string exactly (example: `/better-auth/v1/create-user`).
+- `RAW_BODY` must be exactly the JSON you send on the wire.
+- Nonces are one-time-use (replay protected).
+- Timestamp drift tolerance is 300 seconds.
+
+### Node.js Example of HMAC-Signed REST Requests
+
+```js
+import crypto from "node:crypto";
+
+const keyId = process.env.BA_KEY_ID;
+const secret = process.env.BA_CLIENT_SECRET;
+const wpBaseUrl = process.env.WP_BASE_URL;
+
+function signRequest({ method, route, rawBody, secret }) {
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const nonce = crypto.randomUUID();
+  const bodyHash = crypto.createHash("sha256").update(rawBody, "utf8").digest("hex");
+  const payload = [method, route, timestamp, nonce, bodyHash].join("\n");
+  const signature = crypto.createHmac("sha256", secret).update(payload, "utf8").digest("hex");
+
+  return { timestamp, nonce, signature };
+}
+
+async function signedFetch({ baseUrl, route, method, body, keyId, secret }) {
+  const rawBody = JSON.stringify(body);
+  const { timestamp, nonce, signature } = signRequest({
+    method,
+    route,
+    rawBody,
+    secret
+  });
+
+  return fetch(`${baseUrl}/wp-json${route}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "X-BA-Key-Id": keyId,
+      "X-BA-Timestamp": timestamp,
+      "X-BA-Nonce": nonce,
+      "X-BA-Signature": signature
+    },
+    body: rawBody
+  });
+}
+
+await signedFetch({
+  baseUrl: wpBaseUrl,
+  route: "/better-auth/v1/sync/billing",
+  method: "PATCH",
+  keyId,
+  secret,
+  body: {
+    ba_user_id: "ba_123",
+    billing_address: {
+      first_name: "Jane",
+      last_name: "Doe",
+      address_1: "123 Main St",
+      city: "Austin",
+      state: "TX",
+      postcode: "78701",
+      country: "US",
+      email: "jane@example.com",
+      phone: "555-1111"
+    }
+  }
+});
+```
+
 ## Available REST API Routes
 
 Base namespace: `better-auth/v1`
@@ -74,6 +166,42 @@ Body fields:
 - `name` (optional)
 - `phone` (optional)
 - `otp_method` (optional)
+
+Typically you would use this like:
+
+```typescript
+// in your auth.ts file:
+//....
+export const auth = betterAuth({
+  //...
+  user: {
+    // the tables created by the plugin follow this schema.
+    modelName: "wp_ba_user",
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          await signedFetch({
+            baseUrl: env.WP_BASE_URL,
+            route: "/better-auth/v1/create-user",
+            method: "POST",
+            keyId: env.BA_KEY_ID,
+            secret: env.BA_CLIENT_SECRET,
+            body: {
+              ba_user_id: user.id,
+              email: user.email,
+              name: user.name,
+              phone: user.phoneNumber,
+              otp_method: user.otp_method,
+            },
+          });
+        }
+      }
+    }
+  //...
+});
+```
 
 ### 2) `PATCH /sync/billing`
 
@@ -116,79 +244,6 @@ Body fields:
 Notes:
 
 - Only registered when WooCommerce (`WooCommerce` + `WC_Customer`) is available.
-
-## HMAC Signing Guide
-
-Each request must include:
-
-- `X-BA-Key-Id`
-- `X-BA-Timestamp` (unix seconds)
-- `X-BA-Nonce` (unique per request)
-- `X-BA-Signature`
-
-Signature payload format:
-
-```text
-METHOD + "\n" + ROUTE + "\n" + TIMESTAMP + "\n" + NONCE + "\n" + SHA256(RAW_BODY)
-```
-
-Then:
-
-```text
-X-BA-Signature = HMAC_SHA256(payload, client_secret)
-```
-
-Important:
-
-- `ROUTE` must match WordPress route string exactly (example: `/better-auth/v1/create-user`).
-- `RAW_BODY` must be exactly the JSON you send on the wire.
-- Nonces are one-time-use (replay protected).
-- Timestamp drift tolerance is 300 seconds.
-
-### Node.js Example
-
-```js
-import crypto from "node:crypto";
-
-const keyId = process.env.BA_KEY_ID;
-const secret = process.env.BA_CLIENT_SECRET;
-
-const method = "PATCH";
-const route = "/better-auth/v1/sync/billing";
-const body = {
-  ba_user_id: "ba_123",
-  billing_address: {
-    first_name: "Jane",
-    last_name: "Doe",
-    address_1: "123 Main St",
-    city: "Austin",
-    state: "TX",
-    postcode: "78701",
-    country: "US",
-    email: "jane@example.com",
-    phone: "555-1111"
-  }
-};
-
-const rawBody = JSON.stringify(body);
-const timestamp = String(Math.floor(Date.now() / 1000));
-const nonce = crypto.randomUUID();
-const bodyHash = crypto.createHash("sha256").update(rawBody, "utf8").digest("hex");
-const payload = [method, route, timestamp, nonce, bodyHash].join("\n");
-const signature = crypto.createHmac("sha256", secret).update(payload, "utf8").digest("hex");
-
-await fetch(`https://example.com/wp-json${route}`, {
-  method,
-  headers: {
-    "Content-Type": "application/json",
-    "X-BA-Key-Id": keyId,
-    "X-BA-Timestamp": timestamp,
-    "X-BA-Nonce": nonce,
-    "X-BA-Signature": signature
-  },
-  body: rawBody
-});
-```
 
 ## Database Tables Added
 
