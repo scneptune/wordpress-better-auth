@@ -16,7 +16,7 @@
  * Plugin Name:       Better-Auth
  * Plugin URI:        https://github.com/scneptune/wordpress-better-auth
  * Description:       This plugin creates the necessary schema within wordpress to allow for linking of better-auth.com authentication sessions, if you were to use wordpress headlessly and for-go the traditional wordpress login system. 
- * Version:           2.0.0
+ * Version:           2.0.1
  * Author:            Stephen Neptune
  * Author URI:        https://scneptune.com/
  * License:           GPL-2.0+
@@ -35,7 +35,7 @@ if ( ! defined( 'WPINC' ) ) {
  * Start at version 1.0.0 and use SemVer - https://semver.org
  * Rename this for your plugin and update it as you release new versions.
  */
-define( 'BETTER_AUTH_VERSION', '2.0.0' );
+define( 'BETTER_AUTH_VERSION', '2.0.1' );
 
 /**
  * The code that runs during plugin activation.

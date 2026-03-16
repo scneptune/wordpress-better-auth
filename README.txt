@@ -5,7 +5,7 @@ Tags: headless, authentication, rest-api, woocommerce, user-sync
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -93,6 +93,11 @@ See README.md and CHANGELOG.md in the plugin repository.
 
 == Changelog ==
 
+= 2.0.1 =
+
+- Updated WordPress.org readme structure and consumer-facing documentation.
+- Refined release documentation and metadata consistency.
+
 = 2.0.0 =
 
 - Added keyring-based HMAC signing and verification for sync routes.
@@ -109,6 +114,10 @@ See README.md and CHANGELOG.md in the plugin repository.
 - Initial release with Better Auth schema migrations and foundational sync behavior.
 
 == Upgrade Notice ==
+
+= 2.0.1 =
+
+Maintenance release with documentation and metadata updates.
 
 = 2.0.0 =
 
