@@ -201,6 +201,34 @@ On activation, the plugin creates:
 
 These tables map to Better Auth core model data and are created/updated via WordPress `dbDelta()` migrations.
 
+Please review [Better Auth's Core Schema](https://better-auth.com/docs/concepts/database#core-schema) for individual table schema. Keep in mind in your database models in `auth.ts`
+file will need to be prefixed with `wp_ba_` ; like:
+
+```TypeScript
+// in your auth.ts file:
+ //....
+ export const auth = betterAuth({
+  database: prismaAdapter(prismaClient, { 
+    // you can use any mysql adapter, I'm just using prisma for this example, 
+    provider: "mysql",
+  }),
+  user: {
+    // the tables created by the plugin follow this schema. 
+    modelName: "wp_ba_user",
+  },
+  session: {
+    modelName: "wp_ba_session",
+  },
+  verification: {
+    modelName: "wp_ba_verification",
+  },
+  account: {
+    modelName: "wp_ba_account",
+  },
+  //...
+ });
+```
+
 ## Better Auth Compatibility
 
 Compatibility is schema-based (not runtime package-coupled in WordPress PHP).
