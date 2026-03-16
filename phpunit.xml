@@ -11,4 +11,18 @@
 			<directory suffix="Test.php">tests</directory>
 		</testsuite>
 	</testsuites>
+
+	<coverage>
+		<include>
+			<file>better-auth.php</file>
+			<directory suffix=".php">admin</directory>
+			<directory suffix=".php">includes</directory>
+			<directory suffix=".php">public</directory>
+			<file>uninstall.php</file>
+		</include>
+		<exclude>
+			<directory suffix=".php">tests</directory>
+			<directory suffix=".php">vendor</directory>
+		</exclude>
+	</coverage>
 </phpunit>
