@@ -8,6 +8,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -17,10 +19,17 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.1"
-          coverage: none
+          coverage: xdebug
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
 
-      - name: Run tests
-        run: ./vendor/bin/phpunit --colors=never
+      - name: Run tests with coverage
+        run: ./vendor/bin/phpunit --colors=never --coverage-clover coverage.xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}

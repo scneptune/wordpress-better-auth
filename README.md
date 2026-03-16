@@ -1,7 +1,8 @@
 # Better Auth WordPress Plugin
 
-![Tests](https://img.shields.io/github/actions/workflow/status/scneptune/wordpress-better-auth/phpunit.yml?branch=main&label=tests)
-![Coverage](https://img.shields.io/codecov/c/github/scneptune/wordpress-better-auth?label=coverage)
+[![Tests (Latest Tag)](https://img.shields.io/github/actions/workflow/status/scneptune/wordpress-better-auth/phpunit.yml?event=push&label=tests%20(latest%20tag))](https://github.com/scneptune/wordpress-better-auth/actions/workflows/phpunit.yml)
+[![Latest Tag](https://img.shields.io/github/v/tag/scneptune/wordpress-better-auth?sort=semver)](https://github.com/scneptune/wordpress-better-auth/releases)
+[![Coverage](https://img.shields.io/codecov/c/github/scneptune/wordpress-better-auth?label=coverage)](https://app.codecov.io/gh/scneptune/wordpress-better-auth)
 
 This plugin helps you run Better Auth with a headless WordPress stack by:
 
@@ -55,7 +56,6 @@ At activation, the plugin creates Better Auth schema tables (if missing) via `db
 
 During runtime, it provides sync endpoints for Better Auth -> WordPress/WooCommerce user data flows.
 
-
 ## Key Management
 
 Under `Settings -> General -> Better Auth` you can:
@@ -65,7 +65,6 @@ Under `Settings -> General -> Better Auth` you can:
 - Rotate active credentials
 
 Secrets are shown one-time at generation and then hidden.
-
 
 ## HMAC Signing Guide (ALL API ROUTES MUST BE HMAC SIGNED)
 
