@@ -1,7 +1,7 @@
 # Better Auth WordPress Plugin
 
-![Tests](https://img.shields.io/github/actions/workflow/status/mneptune/better-auth-wp-plugin/phpunit.yml?branch=main&label=tests)
-![Coverage](https://img.shields.io/codecov/c/github/mneptune/better-auth-wp-plugin?label=coverage)
+![Tests](https://img.shields.io/github/actions/workflow/status/scneptune/better-auth-wp-plugin/phpunit.yml?branch=main&label=tests)
+![Coverage](https://img.shields.io/codecov/c/github/scneptune/better-auth-wp-plugin?label=coverage)
 
 This plugin helps you run Better Auth with a headless WordPress stack by:
 
