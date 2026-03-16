@@ -115,6 +115,9 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 		private $params  = array();
 		private $headers = array();
 		private $content_type = array();
+		private $method = 'GET';
+		private $route = '';
+		private $body = '';
 
 		public function set_param( $key, $value ) {
 			$this->params[ $key ] = $value;
@@ -139,6 +142,30 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 
 		public function get_content_type() {
 			return $this->content_type;
+		}
+
+		public function set_method( $method ) {
+			$this->method = strtoupper( (string) $method );
+		}
+
+		public function get_method() {
+			return $this->method;
+		}
+
+		public function set_route( $route ) {
+			$this->route = (string) $route;
+		}
+
+		public function get_route() {
+			return $this->route;
+		}
+
+		public function set_body( $body ) {
+			$this->body = (string) $body;
+		}
+
+		public function get_body() {
+			return $this->body;
 		}
 	}
 }

@@ -58,6 +58,15 @@ class Better_Auth {
 	protected $version;
 
 	/**
+	 * Better Auth user sync REST service.
+	 *
+	 * @since    1.0.1
+	 * @access   protected
+	 * @var      Better_Auth_User_Sync $user_sync Handles /create-user endpoint registration and callbacks.
+	 */
+	protected $user_sync;
+
+	/**
 	 * Define the core functionality of the plugin.
 	 *
 	 * Set the plugin name and the plugin version that can be used throughout the plugin.
@@ -123,7 +132,13 @@ class Better_Auth {
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-better-auth-public.php';
 
+		/**
+		 * The class responsible for Better Auth to WordPress user sync REST endpoints.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-better-auth-user-sync.php';
+
 		$this->loader = new Better_Auth_Loader();
+		$this->user_sync = new Better_Auth_User_Sync();
 
 	}
 
@@ -189,6 +204,7 @@ class Better_Auth {
 	 */
 	private function define_rest_hooks() {
 		$this->loader->add_action( 'rest_api_init', $this, 'register_rest_routes' );
+		$this->loader->add_action( 'rest_api_init', $this->user_sync, 'register_routes' );
 	}
 
 	/**
