@@ -6,6 +6,10 @@ All notable changes are documented here.
 
 - No changes yet.
 
+## 2.0.2
+
+- Version bump and release metadata alignment.
+
 ## 2.0.1
 
 - Updated WordPress.org `README.txt` to follow official structure and consumer-facing tone.
