@@ -20,7 +20,7 @@ if ( ! defined( 'WPINC' ) ) {
 	define( 'WPINC', 'wp-includes' );
 }
 if ( ! defined( 'BETTER_AUTH_VERSION' ) ) {
-	define( 'BETTER_AUTH_VERSION', '1.0.1' );
+	define( 'BETTER_AUTH_VERSION', '2.0.0' );
 }
 
 // Create the stub upgrade.php that activator require_once's.

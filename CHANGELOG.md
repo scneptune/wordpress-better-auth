@@ -2,13 +2,18 @@
 
 All notable changes are documented here.
 
-## Unreleased (since 1.0.1)
+## Unreleased
+
+- No changes yet.
+
+## 2.0.0
 
 Summary based on commits after `1.0.1`:
 
 - Added HMAC request signing with keyring credentials, replay protection, and key usage tracking.
 - Added Better Auth user sync endpoints with WooCommerce-aware billing and shipping sync.
 - Added comprehensive unit tests for HMAC verification and user/address sync flows.
+- Removed legacy `POST /sync-user` endpoint and its bearer-secret auth flow.
 
 ## 1.0.1
 

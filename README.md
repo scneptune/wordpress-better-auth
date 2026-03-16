@@ -1,7 +1,7 @@
 # Better Auth WordPress Plugin
 
-![Tests](https://img.shields.io/github/actions/workflow/status/scneptune/better-auth-wp-plugin/phpunit.yml?branch=main&label=tests)
-![Coverage](https://img.shields.io/codecov/c/github/scneptune/better-auth-wp-plugin?label=coverage)
+![Tests](https://img.shields.io/github/actions/workflow/status/scneptune/wordpress-better-auth/phpunit.yml?branch=main&label=tests)
+![Coverage](https://img.shields.io/codecov/c/github/scneptune/wordpress-better-auth?label=coverage)
 
 This plugin helps you run Better Auth with a headless WordPress stack by:
 
@@ -171,7 +171,7 @@ These tables map to Better Auth core model data and are created/updated via Word
 
 Compatibility is schema-based (not runtime package-coupled in WordPress PHP).
 
-- Plugin version: `1.0.1`
+- Plugin version: `2.0.0`
 - Expected Better Auth schema family: v1.x-style core tables (`user`, `session`, `account`, `verification`) represented here as `ba_*`.
 
 If your Better Auth app uses a different schema revision, validate table columns before production rollout.
