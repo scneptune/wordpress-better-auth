@@ -15,6 +15,12 @@ Connect Better Auth with WordPress by creating required schema tables and exposi
 
 Better Auth WordPress Plugin is designed for headless or hybrid WordPress projects that use Better Auth for authentication.
 
+IMPORTANT:
+
+**This plugin does not handle user credential checks, password login, session issuance, or frontend authentication UI.**
+
+**Better Auth is responsible for sign up and sign in.** This plugin is responsible for post-signup/post-signin syncing and WordPress-side data storage.
+
 This plugin helps by:
 
 1. Creating and maintaining Better Auth schema tables in WordPress.
@@ -30,6 +36,26 @@ Who this is for:
 Developer documentation:
 
 - Full technical guide and HMAC request examples are available in README.md.
+
+Authentication vs Sync flow:
+
+[User]
+	|
+	| 1) Sign up / Sign in
+	v
+[Your App + Better Auth]
+	|  (Better Auth authenticates and manages sessions)
+	|
+	| 2) HMAC-signed sync request
+	v
+[WordPress Better Auth Plugin]
+	|-- creates/maintains Better Auth schema tables
+	|-- links Better Auth users to WordPress users
+	|-- syncs WooCommerce customer profile/address data when available
+	v
+[WordPress/WooCommerce sidecar data]
+
+In short: Better Auth authenticates. This plugin synchronizes related WordPress and WooCommerce data.
 
 == Installation ==
 

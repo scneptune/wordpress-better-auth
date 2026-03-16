@@ -10,6 +10,40 @@ This plugin helps you run Better Auth with a headless WordPress stack by:
 - Exposing WooCommerce-aware profile sync routes for billing and shipping.
 - Protecting sync routes with replay-safe HMAC request signing.
 
+## Important Scope (Read This First)
+
+**This plugin does not provide login credentials, password validation, session issuance, or user authentication UI.**
+
+**Better Auth is the authentication system for sign up and sign in.**
+
+This plugin acts as a **post-signup/post-signin sync sidecar** for WordPress and WooCommerce data:
+
+- It creates the database tables Better Auth needs in WordPress.
+- It links Better Auth users to WordPress users.
+- It stores WordPress/WooCommerce profile data related to that user link.
+
+### Authentication vs Sync Flow (ASCII)
+
+```text
+[User]
+  |
+  | 1) Sign up / Sign in
+  v
+[Your App + Better Auth]
+  |  (Better Auth validates credentials, creates sessions/tokens)
+  |
+  | 2) Server-to-server sync call (HMAC signed)
+  v
+[WordPress Better Auth Plugin]
+  |-- ensures Better Auth schema tables exist (ba_user/ba_session/ba_account/ba_verification)
+  |-- creates/links WP user (and Woo customer when available)
+  |-- stores WordPress-side profile/address metadata
+  v
+[WordPress / WooCommerce data sidecar]
+```
+
+In short: **Better Auth authenticates. This plugin synchronizes and stores related WordPress-side data.**
+
 ## What This Plugin Does
 
 At activation, the plugin creates Better Auth schema tables (if missing) via `dbDelta()`:
