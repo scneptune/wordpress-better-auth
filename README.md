@@ -55,6 +55,18 @@ At activation, the plugin creates Better Auth schema tables (if missing) via `db
 
 During runtime, it provides sync endpoints for Better Auth -> WordPress/WooCommerce user data flows.
 
+
+## Key Management
+
+Under `Settings -> General -> Better Auth` you can:
+
+- Generate credentials (key id + secret)
+- Revoke active keys
+- Rotate active credentials
+
+Secrets are shown one-time at generation and then hidden.
+
+
 ## HMAC Signing Guide (ALL API ROUTES MUST BE HMAC SIGNED)
 
 Each request must include:
@@ -300,16 +312,6 @@ If your Better Auth app uses a different schema revision, validate table columns
 - Body hash is computed from raw request JSON string. Any serialization differences break signatures.
 - Clock skew greater than 5 minutes is rejected.
 - If no active key exists in `better_auth_api_keys`, HMAC requests are rejected.
-
-## Key Management
-
-Under `Settings -> General -> Better Auth` you can:
-
-- Generate credentials (key id + secret)
-- Revoke active keys
-- Rotate active credentials
-
-Secrets are shown one-time at generation and then hidden.
 
 ## Development Setup (Contributing)
 
