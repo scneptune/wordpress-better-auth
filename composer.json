@@ -38,5 +38,10 @@
 		"plugin",
 		"authentication",
 		"better-auth"
-	]
+	],
+	"config": {
+		"allow-plugins": {
+			"composer/installers": true
+		}
+	}
 }
