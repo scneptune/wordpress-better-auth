@@ -5,7 +5,7 @@ Tags: headless, authentication, rest-api, woocommerce, user-sync
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,10 @@ See README.md and CHANGELOG.md in the plugin repository.
 
 == Changelog ==
 
+= 2.0.3 =
+
+- Maintenance release with workflow and documentation refinements.
+
 = 2.0.2 =
 
 - Version bump and release metadata alignment.
@@ -144,6 +148,10 @@ See README.md and CHANGELOG.md in the plugin repository.
 - Initial release with Better Auth schema migrations and foundational sync behavior.
 
 == Upgrade Notice ==
+
+= 2.0.3 =
+
+Maintenance release with no breaking API changes.
 
 = 2.0.2 =
 

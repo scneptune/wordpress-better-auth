@@ -79,7 +79,7 @@ class Better_Auth {
 		if ( defined( 'BETTER_AUTH_VERSION' ) ) {
 			$this->version = BETTER_AUTH_VERSION;
 		} else {
-			$this->version = '2.0.2';
+			$this->version = '2.0.3';
 		}
 		$this->plugin_name = 'better-auth';
 

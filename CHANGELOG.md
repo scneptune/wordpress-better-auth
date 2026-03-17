@@ -6,6 +6,10 @@ All notable changes are documented here.
 
 - No changes yet.
 
+## 2.0.3
+
+- Maintenance release with workflow and documentation refinements.
+
 ## 2.0.2
 
 - Version bump and release metadata alignment.
