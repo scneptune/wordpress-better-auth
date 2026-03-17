@@ -75,6 +75,7 @@ class Better_Auth_Activator {
 			email varchar(255) DEFAULT '',
 			emailVerified tinyint(1) NOT NULL DEFAULT 0,
 			image text,
+			otp_method varchar(255) DEFAULT 'email',
 			createdAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updatedAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
