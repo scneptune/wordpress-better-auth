@@ -98,19 +98,34 @@ class Better_Auth_Request_Signer {
 		$raw_body  = $this->get_request_body_for_signature( $request );
 		$body_hash = hash( 'sha256', $raw_body );
 
-		$payload = implode(
-			"\n",
-			array(
-				$method,
-				$route,
-				$timestamp,
-				$nonce,
-				$body_hash,
-			)
-		);
+		$route_candidates = array( $route );
 
-		$expected_signature = hash_hmac( 'sha256', $payload, $stored_secret );
-		if ( ! hash_equals( $expected_signature, $sent_signature ) ) {
+		// Backward compatibility for clients that sign with the public REST URL path.
+		if ( 0 === strpos( $route, '/' ) && 0 !== strpos( $route, '/wp-json/' ) ) {
+			$route_candidates[] = '/wp-json' . $route;
+		}
+
+		$signature_is_valid = false;
+		foreach ( array_unique( $route_candidates ) as $route_candidate ) {
+			$payload = implode(
+				"\n",
+				array(
+					$method,
+					$route_candidate,
+					$timestamp,
+					$nonce,
+					$body_hash,
+				)
+			);
+
+			$expected_signature = hash_hmac( 'sha256', $payload, $stored_secret );
+			if ( hash_equals( $expected_signature, $sent_signature ) ) {
+				$signature_is_valid = true;
+				break;
+			}
+		}
+
+		if ( ! $signature_is_valid ) {
 			return new WP_Error(
 				'rest_forbidden_invalid_signature',
 				__( 'Invalid request signature.', 'better-auth' ),
