@@ -76,6 +76,7 @@ class Better_Auth_Activator {
 			emailVerified tinyint(1) NOT NULL DEFAULT 0,
 			image text,
 			otp_method varchar(255) DEFAULT 'email',
+			wp_user_id bigint(60) unsigned DEFAULT NULL,
 			phoneNumber varchar(255) DEFAULT NULL,
 			phoneVerified tinyint(1) NOT NULL DEFAULT 0,
 			createdAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,

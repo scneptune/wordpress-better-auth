@@ -226,7 +226,7 @@ class Better_Auth_User_Sync {
             global $wpdb;
             $wpdb->update(
                 $wpdb->prefix . 'ba_user',
-                array( 'wpUserId' => $wp_user_id ),
+                array( 'wp_user_id' => $wp_user_id ),
                 array( 'id' => $ba_id ),
                 array( '%d' ),
                 array( '%s' )
