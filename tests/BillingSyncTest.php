@@ -267,7 +267,7 @@ class BillingSyncTest extends \PHPUnit\Framework\TestCase {
 			}
 
 			public function get_row( $query ) {
-				return (object) array( 'wpUserId' => 321 );
+				return (object) array( 'wp_user_id' => 321 );
 			}
 		};
 
@@ -333,7 +333,7 @@ class BillingSyncTest extends \PHPUnit\Framework\TestCase {
 			}
 
 			public function get_row( $query ) {
-				return (object) array( 'wpUserId' => 444 );
+				return (object) array( 'wp_user_id' => 444 );
 			}
 		};
 

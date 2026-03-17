@@ -540,16 +540,16 @@ class Better_Auth_User_Sync {
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $row = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT wpUserId FROM `{$table_name}` WHERE id = %s",
+                "SELECT wp_user_id FROM `{$table_name}` WHERE id = %s",
                 $ba_user_id
             )
         );
 
-        if ( ! $row || empty( $row->wpUserId ) ) {
+        if ( ! $row || empty( $row->wp_user_id ) ) {
             return 0;
         }
 
-        return (int) $row->wpUserId;
+        return (int) $row->wp_user_id;
     }
 
 }
